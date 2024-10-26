@@ -11,52 +11,54 @@ africastalking.initialize(
 )
 sms = africastalking.SMS
 
-# Define quiz questions with references
+# Define quiz questions with real references
 questions = {
     1: {
-        "question": "What is the first miracle Jesus performed?",
-        "options": ["Healing the blind man", "Parting the Red Sea", "Walking on Water", "Turning Water into Wine"],
+        "question": "What is the first miracle Jesus performed? 🕊️",
+        "options": ["Healing the blind man 👀", "Parting the Red Sea 🌊", "Walking on Water 🚶‍♂️💧", "Turning Water into Wine 🍷"],
         "correct_answer": 4,
-        "reference": "John 2:1-11"  # Reference for the correct answer
+        "reference": "John 2:1-11 📖"
     },
     2: {
-        "question": "Who is the father of Jacob?",
-        "options": ["Abraham", "Isaac", "Nebuchadnezzar", "Saul"],
+        "question": "Who is the father of Jacob? 👨‍👦",
+        "options": ["Abraham 👴", "Isaac 👨", "Nebuchadnezzar 👑", "Saul ⚔️"],
         "correct_answer": 2,
-        "reference": "Genesis 25:26"  # Reference for the correct answer
+        "reference": "Genesis 25:26 📜"
     }
 }
 
 # Store user points and current question
 user_points = 0
 user_current_question = 1
-user_phone_number = ""  # Store the phone number for sending SMS
+
+# Leaderboard
+user_scores = {}
 
 # Main Menu
 def show_main_menu():
-    response = "CON Welcome to Bibilia Mashinani \n"
-    response += "1. Bible Quiz \n"
-    response += "2. Scripture Memorization \n"
-    response += "3. Community Service \n"
-    response += "4. Daily Devotional \n"
-    response += "5. Prayer Chain \n"
-    response += "6. Storytelling Contest \n"
-    response += "0. Exit"
+    response = "CON Welcome to Bibilia Mashinani 🌍✨\n"
+    response += "1. 📜 Bible Quiz\n"
+    response += "2. 📖 Scripture Memorization\n"
+    response += "3. 💪 Community Service\n"
+    response += "4. 🙏 Daily Devotional\n"
+    response += "5. 🙌 Prayer Chain\n"
+    response += "6. 📝 Storytelling Contest\n"
+    response += "0. 🚪 Exit"
     return response
 
 @app.route("/", methods=["POST", "GET"])
 def ussd_callback():
-    global response, user_points, user_current_question, user_phone_number
+    global response, user_points, user_current_question
     session_id = request.values.get("sessionId", None)
     service_code = request.values.get("serviceCode", None)
-    user_phone_number = request.values.get("phoneNumber", None)  # Get user's phone number
+    phone_number = request.values.get("phoneNumber", None)
     text = request.values.get("text", "")
 
     def get_question(question_number):
         """Helper function to retrieve a question and its options."""
         question = questions[question_number]["question"]
         options = questions[question_number]["options"]
-        response = f"CON Question {question_number}: {question} \n"
+        response = f"CON {question} \n"
         for i, option in enumerate(options, 1):
             response += f"{i}. {option} \n"
         return response
@@ -67,17 +69,15 @@ def ussd_callback():
 
     elif text == "1":
         # Bible Quiz Menu
-        response = "CON Bible Quiz Time! : \n"
-        response += "1. Start Quiz \n"
-        response += "2. View Score Leaderboard \n"
-        response += "99. Back To Main Menu"
+        response = "CON 📜 Bible Quiz Time!\n"
+        response += "1. 🏁 Start Quiz\n"
+        response += "2. 🏆 View Score Leaderboard\n"
+        response += "99. 🔙 Back To Main Menu"
 
     elif text == "1*1":
         # Start the first question in the quiz
         response = get_question(1)
-
-        # Send SMS notification to the user about starting the quiz
-        send_sms(user_phone_number, "You have started the Bible Quiz! Good luck!")
+        send_sms(phone_number, "✨ You've started the Bible Quiz! Good luck! Each answer is a step closer to wisdom! 📚🙏")
 
     elif text.startswith("1*1*"):
         # Process quiz answers
@@ -88,17 +88,12 @@ def ussd_callback():
         # Check if the answer is correct
         if user_answer == questions[current_question]["correct_answer"]:
             user_points += 5  # Add points for correct answer
-            response = f"CON Correct! You earn 5 points. \n"
-            # Send SMS notification about the correct answer with reference
-            reference = questions[current_question]["reference"]
-            send_sms(user_phone_number, f"Correct! You earn 5 points. Reference: {reference}")
+            response = f"CON Correct! 🎉 You earned 5 points! Keep going, you’re doing amazing! 🚀\n"
         else:
             correct_option = questions[current_question]["correct_answer"]
             correct_answer_text = questions[current_question]["options"][correct_option - 1]
             reference = questions[current_question]["reference"]
-            response = f"CON Sorry, the correct answer was: '{correct_answer_text}' (See: {reference}) \n"
-            # Send SMS notification about the incorrect answer with reference
-            send_sms(user_phone_number, f"Incorrect! The right answer was: '{correct_answer_text}'. Reference: {reference}")
+            response = f"CON Oops! The correct answer was: '{correct_answer_text}' (See: {reference}). Don't give up! Try the next question! 💪\n"
 
         # Move to the next question if available
         next_question = current_question + 1
@@ -107,42 +102,54 @@ def ussd_callback():
             response += get_question(next_question)
         else:
             # End the quiz if there are no more questions
-            response = f"END Quiz completed! Your total score is {user_points}. Thank you for playing."
-            # Send SMS notification about total points
-            send_sms(user_phone_number, f"Quiz completed! Your total score is {user_points} points.")
+            summary_message = f"END 🎉 Quiz completed! You scored {user_points} points!\nHere are your results:\n\n"
+            summary_message += "📜 Review Your Answers:\n"
+            for q_num, question_data in questions.items():
+                correct_option = question_data["correct_answer"]
+                correct_answer_text = question_data["options"][correct_option - 1]
+                summary_message += f"Q{q_num}: {question_data['question']}\n"
+                summary_message += f"✅ Correct Answer: '{correct_answer_text}' (See: {question_data['reference']})\n\n"
+
+            summary_message += "🙏 Thank you for playing! Keep studying, you’re on the path to wisdom!"
+            response = summary_message
+
+            # Update leaderboard
+            if phone_number not in user_scores:
+                user_scores[phone_number] = 0
+            user_scores[phone_number] += user_points
+
+            # Send SMS notifications about total points and encouragement
+            send_sms(phone_number, f"✨ Quiz completed! You scored {user_points} points! Great job! 🌟 Keep learning!")
+            send_sms(phone_number, "🙏 Keep exploring the Bible! Every answer brings you closer to truth and wisdom!")
 
     elif text == '1*2':
         # Leaderboard functionality
-        sorted_scores = [('254701234567', 10), ('254712345678', 15), ('254723456789', 5)]  # Example scores
-        response = "CON Top Scorers: \n"
-        for i, (user, score) in enumerate(sorted_scores, 1):
+        sorted_scores = sorted(user_scores.items(), key=lambda x: x[1], reverse=True)
+        response = "CON 🏆 Top Scorers:\n"
+        for i, (user, score) in enumerate(sorted_scores[:5], 1):
             response += f"{i}. {user[-4:]} - {score} points\n"  # Showing last 4 digits of phone number
-        response += "99. Back To Main Menu"
-        # Send SMS notification with summarized score
-        send_sms(user_phone_number, f"Your current points: {user_points}. Top scores: {response}")
+        response += "99. 🔙 Back To Main Menu"
 
     elif text == "2":
         # Scripture Memorization
-        response = "CON Scripture Memorization : \n"
-        response += "1. View This Week's Verse \n"
-        response += "99. Back To Main Menu"
+        response = "CON 📖 Scripture Memorization:\n"
+        response += "1. View This Week's Verse 🕊️\n"
+        response += "99. 🔙 Back To Main Menu"
 
     elif '99' in text:
         response = show_main_menu()
 
     elif text == "0":
-        # Exit
-        response = "END Thank you for using the Bibilia Mashinani. God bless you!"
+        # Exit with a guilt-tripping SMS
+        response = "END Thank you for using Bibilia Mashinani. God bless you! 🙏"
+        send_sms(phone_number, "👀 It looks like you left! Remember, every session is a chance to grow in faith. Come back soon! 🙏📖")
 
     return response
 
 def send_sms(phone_number, message):
     """Function to send SMS using Africa's Talking."""
     try:
-        response = sms.send(message, {
-            "to": phone_number,
-            "from": "Bibilia"  # Set the sender ID
-        })
+        response = sms.send(message, [phone_number])
         print(f"SMS sent successfully: {response}")
     except Exception as e:
         print(f"Failed to send SMS: {e}")
