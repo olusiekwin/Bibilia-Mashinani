@@ -30,6 +30,7 @@ questions = {
 # Store user points and current question
 user_points = 0
 user_current_question = 1
+user_phone_number = ""  # Store the phone number for sending SMS
 
 # Main Menu
 def show_main_menu():
@@ -45,10 +46,10 @@ def show_main_menu():
 
 @app.route("/", methods=["POST", "GET"])
 def ussd_callback():
-    global response, user_points, user_current_question
+    global response, user_points, user_current_question, user_phone_number
     session_id = request.values.get("sessionId", None)
     service_code = request.values.get("serviceCode", None)
-    phone_number = request.values.get("phoneNumber", None)
+    user_phone_number = request.values.get("phoneNumber", None)  # Get user's phone number
     text = request.values.get("text", "")
 
     def get_question(question_number):
@@ -76,7 +77,7 @@ def ussd_callback():
         response = get_question(1)
 
         # Send SMS notification to the user about starting the quiz
-        send_sms(phone_number, "You have started the Bible Quiz! Good luck!")
+        send_sms(user_phone_number, "You have started the Bible Quiz! Good luck!")
 
     elif text.startswith("1*1*"):
         # Process quiz answers
@@ -88,11 +89,16 @@ def ussd_callback():
         if user_answer == questions[current_question]["correct_answer"]:
             user_points += 5  # Add points for correct answer
             response = f"CON Correct! You earn 5 points. \n"
+            # Send SMS notification about the correct answer with reference
+            reference = questions[current_question]["reference"]
+            send_sms(user_phone_number, f"Correct! You earn 5 points. Reference: {reference}")
         else:
             correct_option = questions[current_question]["correct_answer"]
             correct_answer_text = questions[current_question]["options"][correct_option - 1]
             reference = questions[current_question]["reference"]
             response = f"CON Sorry, the correct answer was: '{correct_answer_text}' (See: {reference}) \n"
+            # Send SMS notification about the incorrect answer with reference
+            send_sms(user_phone_number, f"Incorrect! The right answer was: '{correct_answer_text}'. Reference: {reference}")
 
         # Move to the next question if available
         next_question = current_question + 1
@@ -102,14 +108,18 @@ def ussd_callback():
         else:
             # End the quiz if there are no more questions
             response = f"END Quiz completed! Your total score is {user_points}. Thank you for playing."
-
-            # Send SMS notification about total points with reference
-            send_sms(phone_number, f"Quiz completed! Your total score is {user_points} points. You can find the answers in the Bible chapters referenced in the questions.")
+            # Send SMS notification about total points
+            send_sms(user_phone_number, f"Quiz completed! Your total score is {user_points} points.")
 
     elif text == '1*2':
         # Leaderboard functionality
+        sorted_scores = [('254701234567', 10), ('254712345678', 15), ('254723456789', 5)]  # Example scores
         response = "CON Top Scorers: \n"
+        for i, (user, score) in enumerate(sorted_scores, 1):
+            response += f"{i}. {user[-4:]} - {score} points\n"  # Showing last 4 digits of phone number
         response += "99. Back To Main Menu"
+        # Send SMS notification with summarized score
+        send_sms(user_phone_number, f"Your current points: {user_points}. Top scores: {response}")
 
     elif text == "2":
         # Scripture Memorization
@@ -129,7 +139,10 @@ def ussd_callback():
 def send_sms(phone_number, message):
     """Function to send SMS using Africa's Talking."""
     try:
-        response = sms.send(message, [phone_number])
+        response = sms.send(message, {
+            "to": phone_number,
+            "from": "Bibilia"  # Set the sender ID
+        })
         print(f"SMS sent successfully: {response}")
     except Exception as e:
         print(f"Failed to send SMS: {e}")
