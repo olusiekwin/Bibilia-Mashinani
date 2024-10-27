@@ -1,12 +1,21 @@
 import os
 import random
-from flask import Flask, request
+from flask import Flask, Response, request
 from pymongo import MongoClient, errors
 from dotenv import load_dotenv
+import africastalking
 
 load_dotenv()
 
 app = Flask(__name__)
+
+#Initialize Africa's Talking
+africastalking.initialize(
+    username='sandbox',
+    api_key='atsk_98638530e5f1dbe6220de8fad0b698d05f3dab1c371c97ebac4521c7c0aad4edfdbe205d'
+)
+
+sms = africastalking.SMS
 
 # Load the MongoDB connection string from environment variables
 MONGODB_KEY = os.getenv('MONGODB_KEY')
@@ -32,8 +41,9 @@ mem_points_collection = db['mem_points']
 sample_questions = [
     {
         "question": "What is the first miracle Jesus performed?",
-        "options": ["Healing the blind man", "Parting the Red Sea", "Walking on Water", "Turning Water into Wine"],
-        "correct_answer": 4
+        "options": ["Healing the blind man 👀", "Parting the Red Sea 🌊", "Walking on Water 🚶‍♂️💧", "Turning Water into Wine 🍷"],
+        "correct_answer": 4,
+        "reference" : "John 2:1-11 📖"
     },
     {
         "question": "Who is the father of Jacob?",
@@ -154,6 +164,21 @@ def get_random_verse():
     response += "11. Back to Memorization Menu"
     return response
 
+def send_sms(phone_number, message):
+    """Function to send SMS using Africa's Talking."""
+    try:
+        response = sms.send(message, [phone_number])
+        print(f"SMS sent successfully: {response}")
+    except Exception as e:
+        print(f"Failed to send SMS: {e}")
+
+@app.route('/incoming-messages', methods=['POST'])
+def incoming_messages():
+    """Route to handle incoming SMS messages."""
+    data = request.get_json(force=True)
+    print(f'Incoming message...\n{data}')
+    return Response(status=200)
+
 @app.route("/", methods=["POST", "GET"])
 def ussd_callback():
     global response, user_points, user_current_question, user_memorization_points
@@ -237,6 +262,7 @@ def ussd_callback():
             else:
                 # End the quiz if there are no more questions
                 response = f"END Quiz completed! Your total score is {user_points}. Thank you for playing."
+                send_sms(phone_number, response)
 
     elif text == '1*2':
         # Leaderboard functionality
