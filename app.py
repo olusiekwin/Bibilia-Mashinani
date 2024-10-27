@@ -83,10 +83,6 @@ user_points = 0
 user_memorization_points = 0
 user_current_question = 1
 
-def set_text(text, value):
-    text = value
-    return text
-
 # Main Menu
 def show_main_menu():
     response = "CON Welcome to Bibilia Mashinani \n"
@@ -174,7 +170,7 @@ def ussd_callback():
         for i, option in enumerate(options, 1):
             response += f"{i}. {option} \n"
         return response
-    
+   
     # Store points for the user (upsert = update if exists, insert if not)
     question_points.update_one(
         {'phone_number': phone_number},  # Identify by phone number
@@ -196,7 +192,6 @@ def ussd_callback():
     # Retrieve memorization points similarly
     mem_data = mem_points_collection.find_one({'phone_number': phone_number})
     user_memorization_points = mem_data['points'] if mem_data else 0
-
 
     if text == "":
         # Main Menu
@@ -274,7 +269,6 @@ def ussd_callback():
         response = "CON Would you like to try again? \n"
         response += "11. Back to Memorization Menu"
 
-
     elif text == '2*3':
         response = "CON Your Memorization Progress : \n"
         if user_memorization_points <= 10:
@@ -316,7 +310,7 @@ def ussd_callback():
     elif text == "3":
         # Community Service
         response = show_comm_menu()
-        
+       
 
     elif text == "4":
         # Daily Devotional
@@ -333,27 +327,19 @@ def ussd_callback():
     elif text == "7":
         #Fitness Challenge
         response = show_fit_menu()
-        
+       
 
     elif text == '99':
         response = show_main_menu()
 
-    elif text == '2*99':  # To handle the back navigation from memorization menu
-        response = show_main_menu()
-
-    elif text == '11':  # General Back to Memorization Menu
+    elif text == '11':
         response = show_mem_menu()
-
-    elif text == '2*3*11':  # If coming from within memorization submenus
-        response = show_mem_menu()
-        set_text(text, "2")
 
     elif text == "0":
         # Exit
         response = "END Thank you for using the Bibilia Mashinani. God bless you!"
 
     return response
-
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=os.environ.get('PORT'), debug=True)
